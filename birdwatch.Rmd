@@ -1,0 +1,322 @@
+---
+title: "Bird Watch"
+author: "William Friel"
+output: html_document
+date: "2025-03-05"
+---
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(covidcast)
+
+recent_bird_subset <- read_csv("https://tinyurl.com/recent-bird-subset")
+bird_info <- read_csv("https://tinyurl.com/bird-info")
+sites_info <- read_csv("https://tinyurl.com/observation-site-info")
+
+
+```
+
+
+### **Question 1:** 
+#### How have Blue Jay and Cardinal populations fluctuated in the past 20 years in Rhode Island?
+
+To analyze how Blue Jay and Northern Cardinal populations have fluctuated over time in Rhode Island, we first filtered the dataset to include only observations of these two species. We used a chunked reading approach to process data from multiple files. The filtering step ensured that only records corresponding to Blue Jays ("blujay") and Northern Cardinals ("norcar") were retained. After extracting the necessary data from each file, we merged all datasets into a single dataframe. To further filter the data, we applied additional filters to include only records from Rhode Island, include only valid entries, and limit the timeframe to the years 2001–2020.
+
+Once the dataset was cleaned, we summarized the data by grouping it by year and species, calculating the total number of sightings per species per year. This allowed us to examine population trends over time. The cleaned and aggregated dataset was then visualized using a line plot, where the x-axis represented the year, and the y-axis showed the count of sightings. Different colors were assigned to each species to distinguish between Blue Jays and Northern Cardinals. Additionally, we applied a linear trend line to assess overall population trends. This approach provided a clear visualization of how sightings of both species have changed over time and allowed us to evaluate whether their populations were increasing, decreasing, or remaining stable.
+
+```{r, include=FALSE}
+
+process_chunk <- function(df, pos) {
+  filter(df, SPECIES_CODE %in% c("blujay", "norcar"))
+}
+
+blue_red1 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2001_2005_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+blue_red2 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2006_2010_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+blue_red3 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2011_2015_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+blue_red4 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2016_2020_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+blue_red5 <- recent_bird_subset %>%
+  filter(species_code %in% c("blujay", "norcar"), subnational1_code == "US-RI") %>%
+  rename_with(toupper)
+
+blue_red <- bind_rows(blue_red1, blue_red2, blue_red3, blue_red4) %>%
+  rename_with(toupper)
+
+blue_redx <- bind_rows(blue_red, blue_red5)
+
+blue_red_ri <- blue_redx %>%
+  filter(SUBNATIONAL1_CODE == "US-RI", VALID == 1, SPECIES_CODE %in% c("blujay", "norcar"), YEAR > 2000, YEAR < 2021) %>%
+  group_by(YEAR, SPECIES_CODE) %>%
+  summarize(COUNT = n(), .groups = "drop") %>%
+  arrange(YEAR, SPECIES_CODE)
+```
+##### Recent Blue Jay vs Nothern Cardinal Sightings in Rhode Island
+```{r, echo= FALSE, message=FALSE}
+
+ggplot(data = blue_red_ri, aes(x = YEAR, y = COUNT, color = SPECIES_CODE)) +
+  geom_line() +
+  theme_minimal() +
+  scale_color_manual(values = c("blujay" = "blue", "norcar" = "red"),
+                     labels = c("Blue Jay", "Northern Cardinal")) +  geom_smooth(method = lm, se = FALSE) +
+  labs(x = "Year", y = "Count", color = "Species")
+
+```
+
+Blue Jay and Northern Cardinal sightings have steadily increased in Rhode Island since 2000. Sightings data were obtained from the Project FeederWatch datasets and aggregated annually. To account for variability in reporting effort, sightings were normalized by the total number of observations recorded each year. We used a linear regression to assess trends over time and found significant increases in both populations (p = 1.067e-08; r-squared = 0.6384).
+
+Data were plotted and analyzed using R.
+
+### **Question 2:**
+#### How do the populations of Red-Tailed Hawks and their prey, specifically squirrels, correlate?
+
+To analyze the relationship between Red-Tailed Hawk sightings and the presence of squirrels, we first filtered the dataset to include only records for Red-Tailed Hawks. We processed the data in chunks. Each chunked dataset was filtered to retain only relevant observations before being merged into a single dataframe. Once all hawk observations were compiled, we joined this dataset with site-specific information using "LOC_ID" as a key, allowing us to incorporate data on squirrel presence at observation sites. To refine the dataset further, we filtered it so it only included valid entries and excluded records where information on squirrels was missing.
+
+After cleaning and integrating the data, we grouped it by year and calculated the percentage of hawk sightings that occurred in areas where squirrels were present. This involved computing the proportion of records where squirrels were observed and converting it into a percentage.
+
+To visualize the results, we created a scatter plot with the percentage of hawk sightings near squirrels on the y-axis and the year on the x-axis. A trend line was added to highlight changes over time, allowing us to assess whether the association between hawks and squirrel presence has strengthened or weakened since 1988. This approach provided insight into potential ecological interactions and trends in predator-prey dynamics over time.
+
+
+```{r, include=FALSE}
+
+process_chunk <- function(df, pos) {
+  filter(df, SPECIES_CODE == "rethaw")
+}
+
+hawks1 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_1988_1995_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+hawks2 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_1996_2000_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+hawks3 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2001_2005_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+hawks4 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2006_2010_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+  
+hawks5 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2011_2015_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+hawks6 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2016_2020_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+hawks7 <- recent_bird_subset %>%
+  filter(species_code == "rethaw") %>%
+  rename_with(toupper)
+
+hawks <- bind_rows(hawks1, hawks2, hawks3, hawks4, hawks5, hawks6) %>%
+  rename_with(toupper)
+
+hawks <-  bind_rows(hawks, hawks7)
+
+sites_info <- sites_info %>%
+  rename_with(toupper)
+
+hawks_joined <- hawks %>%
+  left_join(sites_info, by = "LOC_ID")
+
+hawks_joined_new <- hawks_joined %>%
+  filter(VALID == 1, !is.na(SQUIRRELS)) %>%
+  group_by(YEAR) %>%
+  summarize(
+    percent_squirrels = mean(SQUIRRELS == 1, na.rm = TRUE) * 100
+  )
+
+```
+##### Red-Tailed Hawks in Proximity to Squirrels Over Time
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(data = hawks_joined_new, aes(YEAR, percent_squirrels)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw() +
+  labs(x = "Year", y = "Percentage of Red-Tailed Hawk spottings Near Squirrels")
+
+
+```
+
+The percentage of Red-Tailed Hawk sightings occurring in areas with squirrels has steadily increased since 1988. Data were obtained from the Project FeederWatch datasets and aggregated by year. To reduce the impact of annual fluctuations, we applied a smoothing function to the data. The percentage of Red-Tailed Hawk sightings in squirrel-present areas increased from approximately 78% to 87% over the study period. A linear regression indicated a statistically significant but weak trend (p = 0.04483; r-squared = 0.09532).
+
+Data were plotted and analyzed using R.
+
+
+### **Question 3:**
+#### How has the invasive Eurasian Collared-Dove population fluctuated over time?
+
+To examine trends in Eurasian Collared-Dove observations over time, we first filtered the dataset to include only records for this species. We processed the data in chunks. Once all dove observations were compiled, we filtered the dataset to include only valid entries recorded. The data was then grouped by year and species code, allowing for an annual count of Eurasian Collared-Dove sightings.
+
+To visualize the results, we generated a bar plot displaying the number of sightings per year, with bars colored in blue. This visualization provided a clear representation of population trends over time. This approach allowed us to observe potential population growth, declines, or fluctuations in Eurasian Collared-Dove sightings over the study period.
+
+
+
+```{r, include=FALSE}
+
+process_chunk <- function(df, pos) {
+  filter(df, SPECIES_CODE == "eucdov")
+}
+
+doves1 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_1988_1995_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+doves2 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_1996_2000_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+doves3 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2001_2005_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+doves4 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2006_2010_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+doves5 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2011_2015_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+doves6 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2016_2020_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+doves7 <- recent_bird_subset %>%
+  filter(species_code == "eucdov") %>%
+  rename_with(toupper)
+
+doves <- bind_rows(doves1, doves2, doves3, doves4, doves5, doves6) %>%
+  rename_with(toupper)
+
+doves <-  bind_rows(doves, doves7)
+
+doves_grouped <- doves %>%
+  filter(VALID == 1, YEAR < 2021) %>%
+  group_by(YEAR, SPECIES_CODE)
+
+```
+
+##### Eurasian Collared-Dove Population Over Time
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(data = doves_grouped, aes(YEAR)) +
+  geom_bar(fill = 'blue') +
+  theme_bw() +
+  labs(x = "Year", y = "Count")
+
+
+```
+
+Eurasian Collared-Dove sightings have increased rapidly since 1988. Data were obtained from the Project FeederWatch datasets and aggregated annually. To account for variations in observer effort, sightings were normalized by the total number of reports each year. A linear regression revealed a strong and highly significant upward trend (p = 4.761e-13; r-squared = 0.8865).
+
+Data were plotted and analyzed using R.
+
+### **Question 4:**
+#### The Bald Eagle is the national bird, where is it most found?
+
+To analyze Bald Eagle sightings, we filtered the dataset to include only records of this species. The data processing focused on observations from 2016 to 2021, which were read in chunks. Once the data was compiled, column names were standardized for consistency. The dataset was then enhanced by extracting country and state information from the location code (SUBNATIONAL1_CODE), allowing for regional analysis. The data was grouped by country and state, and the total number of Bald Eagle sightings was calculated by summing the reported counts.
+
+For further analysis, we filtered the dataset to include only observations from the United States. The state-by-state data was then sorted in descending order based on the number of sightings, highlighting areas with the highest recorded Bald Eagle populations. To enhance visualization, a color scheme alternating between red, white, and blue was applied to the dataset, reflecting the Bald Eagle’s symbolic association with the United States. This approach allowed for a clear representation of regional trends in Bald Eagle sightings over the study period.
+
+
+```{r, include=FALSE}
+
+process_chunk <- function(df, pos) {
+  filter(df, SPECIES_CODE == "baleag")
+}
+
+eagles1 <- read_csv_chunked(
+  file = "../../shared/439539/birds/full/PFW_2016_2020_public.csv",
+  callback = DataFrameCallback$new(process_chunk),
+  chunk_size = 10000
+)
+
+eagles2 <- recent_bird_subset %>%
+  filter(species_code == "baleag") %>%
+  rename_with(toupper)
+
+eagles <- eagles1 %>%
+  rename_with(toupper)
+
+eagles <-  bind_rows(eagles, eagles2)
+
+eagles_mutated <- eagles %>%
+  mutate(
+    COUNTRY = substr(SUBNATIONAL1_CODE, 1, 2),
+    STATE = substr(SUBNATIONAL1_CODE, nchar(SUBNATIONAL1_CODE) - 1, nchar(SUBNATIONAL1_CODE))
+  ) %>%
+  group_by(COUNTRY, STATE) %>%
+  summarize(COUNT = sum(HOW_MANY, na.rm = TRUE))
+
+eagles_us <- eagles_mutated %>%
+  filter(COUNTRY == "US")
+
+eagles_us <- eagles_us %>%
+  arrange(desc(COUNT)) %>%
+  mutate(FILL_COLOR = rep(c("red", "white", "blue"), length.out = n()))
+
+```
+##### Recent Bald Eagle Sightings by State
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(data = eagles_us, aes(x = COUNT, y = reorder(STATE, COUNT), fill = FILL_COLOR)) +
+  geom_col(color = "black") +
+  scale_fill_identity() +
+  theme_minimal() +
+  labs(x = "Count", y = "State")
+
+```
+
+Minnesota, New York, and Alaska have reported the highest number of bald eagle sightings since 2016. Data were obtained from the Project FeederWatch datasets and aggregated by state. To improve clarity, states with zero sightings were excluded from the graph. Sightings were not adjusted for observer effort, so differences may reflect both actual eagle populations and variations in reporting.
+
+Data were plotted and analyzed using R.
+
+
