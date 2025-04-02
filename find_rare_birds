@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+# Script: find_rare_birds
+# Purpose: Identify rare bird sightings in the US from CSV files.
+# Usage: find_rare_birds [list of CSV files]
+# Output: 2 CSV files - "all_observations.csv" and "yearly_observations.csv"
+
+if [ $# -lt 1 ]; then
+  echo "Usage: find_rare_birds [list of csv files]"
+  exit 1
+fi
+
+ALL_OBS="all_observations.csv"
+YEARLY_OBS="yearly_observations.csv"
+
+# Add headers to output files
+echo "SpeciesCode,ScientificName,CommonName,YearObserved,LocationID,Latitude,Longitude,State" > "$ALL_OBS"
+echo "SpeciesCode,ScientificName,CommonName,YearObserved,LocationID,Latitude,Longitude,State" > "$YEARLY_OBS"
+
+# Process each file
+for file in "$@"; do
+  echo "Processing file: $file"
+
+  awk -F, '
+  BEGIN { OFS="," }
+  NR > 1 {
+    species = $12;       # Species Code
+    sci_name = $13;      # Scientific Name
+    common_name = $14;   # Common Name
+    year = $10;          # Year Observed
+    location = $1;       # Location ID
+    latitude = $2;       # Latitude
+    longitude = $3;      # Longitude
+    state = $4;          # State
+    
+    key = species;
+    year_key = species "," year;
+
+    all_counts[key]++; # counts how many times a species appears in all observations
+    year_counts[year_key]++; # counts how many times a species appears in a specific year
+
+    data[key][location] = species "," sci_name "," common_name "," year "," location "," latitude "," longitude "," state; # stores the full row of information for each species at a particular location.
+    data_year[year_key][location] = species "," sci_name "," common_name "," year "," location "," latitude "," longitude "," state; # stores the full row of information for each species in a specific year
+  }
+  END {
+    for (s in all_counts) { # assigns input to all_observations
+      if (all_counts[s] == 1) {
+        for (loc in data[s]) {
+          print data[s][loc] >> "'"$ALL_OBS"'"
+        }
+      }
+    }
+    for (sy in year_counts) { # assigns input to yearly_observations
+      if (year_counts[sy] == 1) {
+        for (loc in data_year[sy]) {
+          print data_year[sy][loc] >> "'"$YEARLY_OBS"'"
+        }
+      }
+    }
+  }
+  ' "$file"
+done
+
+echo "Results saved to $ALL_OBS and $YEARLY_OBS."
