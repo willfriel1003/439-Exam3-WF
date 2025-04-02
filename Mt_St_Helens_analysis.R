@@ -12,6 +12,8 @@ ggplot(data = st_helens, mapping = aes(x = richness)) +
 ggplot(data = st_helens, mapping = aes(x = factor(year), y = richness)) +
   geom_boxplot()
 
+#Yo
+
 mt_st_helens_1 <- mutate(mt_st_helens_1,
                          plot_name = substr(plot_code, 1, 4),
                          plot_number = substr(plot_code, 5, 6)
