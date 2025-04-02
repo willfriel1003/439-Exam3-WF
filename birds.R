@@ -7,7 +7,6 @@ bird_info <- read_csv("https://tinyurl.com/bird-info")
 sites_info <- read_csv("https://tinyurl.com/observation-site-info")
 
 
-
 hummingbirds_from_subset <- filter(recent_bird_subset, species_code == "rthhum")
 
 process_chunk <- function(df, pos) {
@@ -28,7 +27,6 @@ hummers2 <- read_csv_chunked(
 
 all_hummers <- bind_rows(hummers, hummers2)  
 
-## ====================================================
 
 process_chunk <- function(df, pos) {
   filter(df, SPECIES_CODE %in% c("blujay", "norcar"))
