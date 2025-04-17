@@ -1,4 +1,4 @@
-This is the text file -> This is the change for challenge 1 right here -> new change for challenge 2
+This is the text file -> This is the change for challenge 1 right here -> Here is a change that should result in a conflict
 Jack and I are partners
 Words are in this file
 This is for the git exam -> This is the change
